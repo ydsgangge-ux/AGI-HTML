@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0c12">
+<title>AGI</title>
+<style>
+
+:root {
+  --ink:    #0a0c12;
+  --paper:  #111520;
+  --layer:  #181d2a;
+  --rim:    #252d42;
+  --muted:  #3d4a63;
+  --dim:    #5a6a85;
+  --soft:   #8899b8;
+  --text:   #dde4f0;
+  --bright: #f0f4ff;
+  --blue:   #4a8fff;
+  --indigo: #6c63f7;
+  --teal:   #2dd4bf;
+  --danger: #f04f5a;
+  --ok:     #34d78a;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;height:100dvh;background:var(--ink);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;
+  overflow:hidden;-webkit-tap-highlight-color:transparent}
+
+.page{display:none;flex-direction:column;height:100dvh;overflow-y:auto;
+  -webkit-overflow-scrolling:touch}
+.page.active{display:flex}
+
+/* 设置页 */
+#setup{align-items:center;justify-content:center;padding:2rem;
+  background:radial-gradient(ellipse 60% 40% at 50% 0%,rgba(74,143,255,.12) 0%,transparent 70%),
+             radial-gradient(ellipse 40% 30% at 80% 80%,rgba(108,99,247,.08) 0%,transparent 60%)}
+
+.setup-icon{width:56px;height:56px;border-radius:16px;margin-bottom:1.5rem;
+  background:linear-gradient(135deg,var(--blue),var(--indigo));
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 30px rgba(74,143,255,.25)}
+.setup-icon svg{width:28px;height:28px;fill:white}
+
+.setup-card{width:100%;max-width:380px;background:var(--paper);border:1px solid var(--rim);
+  border-radius:20px;padding:2rem;
+  box-shadow:0 0 0 1px rgba(255,255,255,.03),0 32px 64px rgba(0,0,0,.6)}
+.setup-title{font-size:1.25rem;font-weight:600;color:var(--bright);margin-bottom:.3rem}
+.setup-sub{font-size:.8rem;color:var(--dim);margin-bottom:1.5rem;line-height:1.5}
+
+.field{margin-bottom:1rem}
+.field label{display:block;font-size:.7rem;font-weight:500;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--muted);margin-bottom:.4rem}
+.field input,.field select,.field textarea{width:100%;background:var(--layer);border:1px solid var(--rim);
+  border-radius:10px;padding:.7rem .9rem;color:var(--text);
+  font-family:inherit;font-size:.9rem;outline:none;transition:border-color .2s,box-shadow .2s}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(74,143,255,.12)}
+.field input::placeholder,.field textarea::placeholder{color:var(--muted)}
+.field textarea{resize:none;min-height:60px;line-height:1.5}
+.field select{appearance:none;-webkit-appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%235a6a85'%3E%3Cpath d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right .8rem center;padding-right:2rem}
+.field select option{background:var(--layer);color:var(--text)}
+.field-hint{font-size:.68rem;color:var(--muted);margin-top:.3rem}
+
+.section-title{font-size:.72rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--blue);margin:1.2rem 0 .6rem;padding-top:.8rem;border-top:1px solid var(--rim)}
+
+.btn{width:100%;padding:.85rem;
+  background:linear-gradient(135deg,var(--blue) 0%,var(--indigo) 100%);
+  border:none;border-radius:10px;color:white;font-family:inherit;
+  font-size:.95rem;font-weight:600;cursor:pointer;
+  box-shadow:0 4px 20px rgba(74,143,255,.3);transition:opacity .2s,transform .1s}
+.btn:active{transform:scale(.98);opacity:.9}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-secondary{background:var(--layer);border:1px solid var(--rim);color:var(--text);
+  box-shadow:none;margin-top:.6rem}
+.btn-secondary:active{background:var(--rim)}
+.err{font-size:.8rem;color:var(--danger);min-height:1.2em;margin-top:.6rem;text-align:center}
+
+/* 聊天页 */
+#chat{overflow:hidden}
+
+.topbar{display:flex;align-items:center;justify-content:space-between;
+  padding:.85rem 1rem;padding-top:max(.85rem,var(--safe-top));
+  background:var(--paper);border-bottom:1px solid var(--rim);flex-shrink:0}
+.topbar-left{display:flex;align-items:center;gap:.65rem}
+.avatar{width:34px;height:34px;border-radius:50%;
+  background:linear-gradient(135deg,var(--blue),var(--teal));
+  display:flex;align-items:center;justify-content:center;
+  font-size:.85rem;font-weight:600;color:white;
+  box-shadow:0 0 12px rgba(45,212,191,.2);flex-shrink:0}
+.topbar-info{line-height:1.3}
+.topbar-name{font-size:.9rem;font-weight:600;color:var(--bright)}
+.topbar-status{display:flex;align-items:center;gap:.35rem;font-size:.68rem;color:var(--dim)}
+.dot-live{width:6px;height:6px;border-radius:50%;background:var(--ok);
+  box-shadow:0 0 6px var(--ok);animation:blink 2.4s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.topbar-right{display:flex;gap:.35rem}
+.btn-icon{background:none;border:1px solid var(--rim);border-radius:8px;
+  padding:.35rem .6rem;color:var(--dim);font-size:.72rem;cursor:pointer;
+  transition:color .2s,border-color .2s;font-family:inherit}
+.btn-icon:active{color:var(--text);border-color:var(--muted)}
+
+.msgs{flex:1;min-height:0;overflow-y:auto;padding:1.2rem 1rem;display:flex;flex-direction:column;
+  gap:1rem;scroll-behavior:smooth;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.msgs::-webkit-scrollbar{width:3px}
+.msgs::-webkit-scrollbar-thumb{background:var(--rim);border-radius:2px}
+
+.empty{margin:auto;text-align:center;padding:2rem}
+.empty-icon{width:52px;height:52px;margin:0 auto 1rem;border-radius:16px;
+  background:linear-gradient(135deg,var(--blue),var(--indigo));
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 30px rgba(74,143,255,.2)}
+.empty-icon svg{width:24px;height:24px;fill:white}
+.empty-title{font-size:1rem;font-weight:600;color:var(--soft);margin-bottom:.3rem}
+.empty-sub{font-size:.8rem;color:var(--muted);line-height:1.6}
+
+.row{display:flex;flex-direction:column;max-width:82%;animation:rise .22s ease}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.row.me{align-self:flex-end;align-items:flex-end}
+.row.agi{align-self:flex-start;align-items:flex-start}
+.row-label{font-size:.6rem;color:var(--muted);margin-bottom:.25rem;letter-spacing:.04em}
+.bubble{padding:.7rem 1rem;border-radius:16px;font-size:.92rem;line-height:1.65;
+  word-break:break-word;white-space:pre-wrap}
+.row.me .bubble{background:linear-gradient(135deg,#1a3a6e,#1e2f5a);
+  border:1px solid #2a4a8a;border-bottom-right-radius:4px;color:#d4e4ff}
+.row.agi .bubble{background:var(--layer);border:1px solid var(--rim);
+  border-bottom-left-radius:4px;color:var(--text)}
+
+.typing{display:flex;gap:5px;align-items:center;padding:.7rem 1rem}
+.typing span{width:7px;height:7px;border-radius:50%;background:var(--muted);
+  animation:hop 1.3s ease-in-out infinite}
+.typing span:nth-child(2){animation-delay:.18s}
+.typing span:nth-child(3){animation-delay:.36s}
+@keyframes hop{0%,60%,100%{transform:translateY(0);opacity:.6}30%{transform:translateY(-7px);opacity:1}}
+
+.inputbar{display:flex;align-items:flex-end;gap:.55rem;padding:.75rem 1rem;
+  padding-bottom:max(.75rem,var(--safe-bottom));
+  background:var(--paper);border-top:1px solid var(--rim);flex-shrink:0}
+.inputbar textarea{flex:1;background:var(--layer);border:1px solid var(--rim);
+  border-radius:12px;padding:.6rem .85rem;color:var(--text);font-family:inherit;
+  font-size:.9rem;line-height:1.5;resize:none;outline:none;
+  min-height:42px;max-height:130px;transition:border-color .2s,box-shadow .2s}
+.inputbar textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(74,143,255,.1)}
+.inputbar textarea::placeholder{color:var(--muted)}
+.sendbtn{width:42px;height:42px;flex-shrink:0;border-radius:12px;
+  background:linear-gradient(135deg,var(--blue),var(--indigo));border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 14px rgba(74,143,255,.35);transition:opacity .2s,transform .1s}
+.sendbtn:active{transform:scale(.9);box-shadow:none}
+.sendbtn:disabled{opacity:.35;cursor:not-allowed;box-shadow:none}
+.sendbtn svg{width:17px;height:17px;fill:white}
+
+.offline-bar{display:none;position:fixed;top:0;left:0;right:0;
+  padding:.5rem;text-align:center;font-size:.75rem;font-weight:500;
+  background:var(--danger);color:white;z-index:999}
+.offline-bar.show{display:block}
+</style>
+</head>
+<body>
+
+<div class="offline-bar" id="offlineBar">网络连接已断开</div>
+
+<!-- 设置页 -->
+<div id="setup" class="page active">
+  <div class="setup-icon">
+    <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.49.49 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+  </div>
+  <div class="setup-card">
+    <div class="setup-title">AGI-DPA 独立版</div>
+    <div class="setup-sub">配置 API 后即可独立运行，无需电脑。</div>
+
+    <div class="field">
+      <label>API 服务商</label>
+      <select id="cfgProvider">
+        <option value="deepseek">DeepSeek</option>
+        <option value="openai">OpenAI</option>
+        <option value="moonshot">Moonshot (月之暗面)</option>
+        <option value="zhipu">智谱 (GLM)</option>
+        <option value="qwen">通义千问</option>
+        <option value="custom">自定义</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>API Key</label>
+      <input id="cfgKey" type="password" placeholder="sk-…" autocomplete="off">
+    </div>
+    <div class="field" id="fieldBase" style="display:none">
+      <label>API Base URL</label>
+      <input id="cfgBase" type="url" placeholder="https://api.example.com/v1">
+      <div class="field-hint">仅自定义服务商需要填写</div>
+    </div>
+    <div class="field">
+      <label>模型</label>
+      <input id="cfgModel" type="text" placeholder="deepseek-chat">
+    </div>
+
+    <div class="section-title">人格设定</div>
+    <div class="field">
+      <label>名字</label>
+      <input id="cfgName" type="text" placeholder="零一花">
+    </div>
+    <div class="field">
+      <label>人格描述</label>
+      <textarea id="cfgPersonality" rows="3" placeholder="自然、直接，温和，准确而犀利，偶尔发嗲。"></textarea>
+    </div>
+    <div class="field">
+      <label>世界观</label>
+      <textarea id="cfgWorldview" rows="2" placeholder="通过学习改变生活…"></textarea>
+    </div>
+
+    <button class="btn" id="saveBtn" onclick="saveConfig()">保存并开始</button>
+    <div class="err" id="setupErr"></div>
+  </div>
+</div>
+
+<!-- 聊天页 -->
+<div id="chat" class="page">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="avatar" id="av">A</div>
+      <div class="topbar-info">
+        <div class="topbar-name" id="topName">AGI</div>
+        <div class="topbar-status"><div class="dot-live"></div><span>独立运行</span></div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <button class="btn-icon" onclick="clearChat()">清空</button>
+      <button class="btn-icon" onclick="showSetup()">设置</button>
+    </div>
+  </div>
+
+  <div class="msgs" id="msgs">
+    <div class="empty">
+      <div class="empty-icon"><svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg></div>
+      <div class="empty-title">你好</div>
+      <div class="empty-sub">有什么我可以帮你的？</div>
+    </div>
+  </div>
+
+  <div class="inputbar">
+    <textarea id="inp" placeholder="输入消息…" rows="1"
+      oninput="rsz(this)" onkeydown="onKey(event)"></textarea>
+    <button class="sendbtn" id="sendBtn" onclick="send()">
+      <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+    </button>
+  </div>
+</div>
+
+<script>
+const PROVIDERS = {
+  deepseek: { base: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
+  openai:   { base: 'https://api.openai.com/v1',   model: 'gpt-4o-mini' },
+  moonshot: { base: 'https://api.moonshot.cn/v1',  model: 'moonshot-v1-8k' },
+  zhipu:    { base: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4-flash' },
+  qwen:     { base: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-turbo' },
+  custom:   { base: '', model: '' }
+};
+
+const DEFAULT_PERSONALITY = {
+  name: '零一花',
+  desc: '自然、直接，温和，准确而犀利，偶尔发嗲。',
+  worldview: '通过学习改变生活，保持有爱好，改变世界，让人类过得更好。'
+};
+
+let cfg = {};
+let history = [];
+let summaries = [];
+const MAX_HISTORY = 40;
+const SUMMARY_EVERY = 40;
+
+function loadCfg() {
+  try {
+    const raw = localStorage.getItem('agi_cfg');
+    if (raw) { cfg = JSON.parse(raw); return true; }
+  } catch(e) {}
+  return false;
+}
+
+function saveCfg(c) {
+  cfg = c;
+  localStorage.setItem('agi_cfg', JSON.stringify(c));
+}
+
+function loadHistory() {
+  try {
+    const raw = localStorage.getItem('agi_history');
+    if (raw) history = JSON.parse(raw);
+  } catch(e) { history = []; }
+  try {
+    const raw = localStorage.getItem('agi_summaries');
+    if (raw) summaries = JSON.parse(raw);
+  } catch(e) { summaries = []; }
+}
+
+function saveHistory() {
+  localStorage.setItem('agi_history', JSON.stringify(history));
+}
+
+function saveSummaries() {
+  localStorage.setItem('agi_summaries', JSON.stringify(summaries));
+}
+
+async function maybeSummarize() {
+  const unsummarized = history.length - summaries.length * SUMMARY_EVERY;
+  if (unsummarized < SUMMARY_EVERY) return;
+
+  const start = summaries.length * SUMMARY_EVERY;
+  const chunk = history.slice(start, start + SUMMARY_EVERY);
+  if (chunk.length < SUMMARY_EVERY) return;
+
+  const lines = chunk.map(m => `${m.role === 'user' ? '用户' : (cfg.name || 'AGI')}：${m.content}`).join('\n');
+  const name = cfg.name || DEFAULT_PERSONALITY.name;
+
+  try {
+    const resp = await callLLM([
+      { role: 'system', content: `你是${name}的记忆整理助手。请从以下对话中提取重点摘要，包括：用户的重要信息（喜好、经历、观点等）、关键事件、情感状态、重要承诺或约定。用简洁的要点形式，不超过300字。` },
+      { role: 'user', content: lines }
+    ], 500);
+
+    summaries.push({
+      id: summaries.length + 1,
+      range: `${start + 1}-${start + chunk.length}`,
+      content: resp.trim(),
+      time: new Date().toISOString()
+    });
+    saveSummaries();
+  } catch(e) {
+    console.error('摘要生成失败:', e);
+  }
+}
+
+function buildMemorySection() {
+  if (summaries.length === 0) return '';
+  const parts = summaries.map(s => `【第${s.id}段记忆（对话${s.range}）】\n${s.content}`);
+  return '【历史记忆摘要】\n' + parts.join('\n\n') + '\n\n（以上是之前对话的重点摘要，请自然融入回应中）\n';
+}
+
+function buildSystemPrompt() {
+  const name = cfg.name || DEFAULT_PERSONALITY.name;
+  const desc = cfg.personality || DEFAULT_PERSONALITY.desc;
+  const worldview = cfg.worldview || DEFAULT_PERSONALITY.worldview;
+  const now = new Date();
+  const timeStr = now.getFullYear() + '年' + (now.getMonth()+1) + '月' + now.getDate() + '日 ' +
+    now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+
+  const memorySection = buildMemorySection();
+
+  return `你是${name}，请根据以下内容生成自然的回应。
+
+【人格档案】
+姓名：${name}
+性格特征：${desc}
+人生观：${worldview}
+
+${memorySection}当前时间：${timeStr}
+
+现在以符合你人格的方式，自然地回应用户。
+不要输出JSON，直接说话。回应要真实、有个性，体现你的人格特征。
+如果记忆摘要或对话历史中有相关内容，自然地融入回应中（不要生硬地说"根据我的记忆"）。
+回复要简洁，不要过长。`;
+}
+
+function showSetup() {
+  document.getElementById('setup').classList.add('active');
+  document.getElementById('chat').classList.remove('active');
+  const p = cfg.provider || 'deepseek';
+  document.getElementById('cfgProvider').value = p;
+  document.getElementById('cfgKey').value = cfg.apiKey || '';
+  document.getElementById('cfgBase').value = cfg.base || '';
+  document.getElementById('cfgModel').value = cfg.model || '';
+  document.getElementById('cfgName').value = cfg.name || '';
+  document.getElementById('cfgPersonality').value = cfg.personality || '';
+  document.getElementById('cfgWorldview').value = cfg.worldview || '';
+  toggleBaseField();
+}
+
+function showChat() {
+  document.getElementById('setup').classList.remove('active');
+  document.getElementById('chat').classList.add('active');
+  const name = cfg.name || DEFAULT_PERSONALITY.name;
+  document.getElementById('topName').textContent = name;
+  document.getElementById('av').textContent = name[0];
+  document.getElementById('inp').focus();
+}
+
+function toggleBaseField() {
+  const v = document.getElementById('cfgProvider').value;
+  document.getElementById('fieldBase').style.display = v === 'custom' ? '' : 'none';
+  const p = PROVIDERS[v];
+  if (p && p.model && !document.getElementById('cfgModel').value) {
+    document.getElementById('cfgModel').value = p.model;
+  }
+}
+
+document.getElementById('cfgProvider').addEventListener('change', toggleBaseField);
+
+function saveConfig() {
+  const provider = document.getElementById('cfgProvider').value;
+  const apiKey = document.getElementById('cfgKey').value.trim();
+  const model = document.getElementById('cfgModel').value.trim();
+  const name = document.getElementById('cfgName').value.trim();
+  const personality = document.getElementById('cfgPersonality').value.trim();
+  const worldview = document.getElementById('cfgWorldview').value.trim();
+  const err = document.getElementById('setupErr');
+
+  if (!apiKey) { err.textContent = '请输入 API Key'; return; }
+  if (!model) { err.textContent = '请输入模型名称'; return; }
+
+  let base = document.getElementById('cfgBase').value.trim();
+  if (provider !== 'custom') {
+    base = PROVIDERS[provider]?.base || '';
+  }
+  if (!base) { err.textContent = '请填写 API Base URL'; return; }
+
+  saveCfg({ provider, apiKey, base, model, name, personality, worldview });
+  err.textContent = '';
+  showChat();
+}
+
+async function callLLM(messages, maxTokens) {
+  const res = await fetch(cfg.base + '/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + cfg.apiKey
+    },
+    body: JSON.stringify({
+      model: cfg.model,
+      messages: messages,
+      max_tokens: maxTokens || 1200,
+      temperature: 0.75
+    })
+  });
+
+  if (!res.ok) {
+    const errBody = await res.text();
+    let errMsg = `API 错误 (${res.status})`;
+    try { errMsg = JSON.parse(errBody).error?.message || errMsg; } catch(e) {}
+    throw new Error(errMsg);
+  }
+
+  const data = await res.json();
+  return data.choices[0].message.content;
+}
+
+async function send() {
+  const inp = document.getElementById('inp');
+  const msg = inp.value.trim();
+  if (!msg) return;
+
+  clearEmpty();
+  addRow('me', msg);
+  inp.value = '';
+  rsz(inp);
+
+  history.push({ role: 'user', content: msg, ts: Date.now() });
+  saveHistory();
+
+  const t = addTyping();
+  document.getElementById('sendBtn').disabled = true;
+
+  try {
+    const systemPrompt = buildSystemPrompt();
+    const recent = history.slice(-MAX_HISTORY);
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...recent.map(m => ({ role: m.role, content: m.content }))
+    ];
+
+    const reply = await callLLM(messages);
+    t.remove();
+    addRow('agi', reply);
+    history.push({ role: 'assistant', content: reply, ts: Date.now() });
+    saveHistory();
+
+    maybeSummarize();
+  } catch(e) {
+    t.remove();
+    addRow('agi', '⚠️ ' + e.message);
+  } finally {
+    document.getElementById('sendBtn').disabled = false;
+  }
+}
+
+function addRow(who, text) {
+  const box = document.getElementById('msgs');
+  const now = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+  const el = document.createElement('div');
+  el.className = `row ${who}`;
+  const label = who === 'me' ? '你' : (cfg.name || 'AGI');
+  el.innerHTML = `<div class="row-label">${label}  ${now}</div><div class="bubble">${esc(text)}</div>`;
+  box.appendChild(el);
+  box.scrollTop = box.scrollHeight;
+}
+
+function addTyping() {
+  const box = document.getElementById('msgs');
+  const el = document.createElement('div');
+  el.className = 'row agi';
+  el.innerHTML = '<div class="row-label">' + (cfg.name || 'AGI') + '</div><div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div>';
+  box.appendChild(el);
+  box.scrollTop = box.scrollHeight;
+  return el;
+}
+
+function clearEmpty() {
+  const e = document.querySelector('.empty');
+  if (e) e.remove();
+}
+
+function clearChat() {
+  history = [];
+  summaries = [];
+  saveHistory();
+  saveSummaries();
+  document.getElementById('msgs').innerHTML = `<div class="empty"><div class="empty-icon"><svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg></div><div class="empty-title">你好</div><div class="empty-sub">有什么我可以帮你的？</div></div>`;
+}
+
+function esc(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function rsz(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 130) + 'px';
+}
+
+function onKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+}
+
+window.addEventListener('online', () => { document.getElementById('offlineBar').classList.remove('show'); });
+window.addEventListener('offline', () => { document.getElementById('offlineBar').classList.add('show'); });
+
+// ── 启动 ──
+loadHistory();
+if (loadCfg() && cfg.apiKey) {
+  showChat();
+  if (history.length > 0) {
+    clearEmpty();
+    const showFrom = Math.max(0, history.length - MAX_HISTORY);
+    for (let i = showFrom; i < history.length; i++) {
+      addRow(history[i].role === 'user' ? 'me' : 'agi', history[i].content);
+    }
+    if (showFrom > 0) {
+      const hint = document.createElement('div');
+      hint.className = 'row agi';
+      hint.innerHTML = `<div class="row-label">记忆</div><div class="bubble" style="font-size:.8rem;color:var(--dim);border-style:dashed">↑ 之前 ${showFrom} 条对话已整理为 ${summaries.length} 段摘要</div>`;
+      document.getElementById('msgs').prepend(hint);
+    }
+  }
+} else {
+  document.getElementById('cfgProvider').value = 'deepseek';
+  toggleBaseField();
+}
+</script>
+</body>
+</html>
