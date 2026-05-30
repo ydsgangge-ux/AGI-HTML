@@ -6,6 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0a0c12">
+<link rel="manifest" href="manifest.json">
 <title>AGI</title>
 <style>
 
@@ -560,6 +561,11 @@ if (loadCfg() && cfg.apiKey) {
 } else {
   document.getElementById('cfgProvider').value = 'deepseek';
   toggleBaseField();
+}
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 </script>
 </body>
