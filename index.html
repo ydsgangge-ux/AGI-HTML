@@ -363,10 +363,14 @@ function buildSystemPrompt() {
 
 ${memorySection}当前时间：${timeStr}
 
-现在以符合你人格的方式，自然地回应用户。
-不要输出JSON，直接说话。回应要真实、有个性，体现你的人格特征。
-如果记忆摘要或对话历史中有相关内容，自然地融入回应中（不要生硬地说"根据我的记忆"）。
-回复要简洁，不要过长。`;
+【回复格式要求】
+1. 像真人聊天一样，自然使用颜文字（如 (≧▽≦)、╮(╯▽╰)╭、(⁄ ⁄•⁄ω⁄•⁄ ⁄)、(´-ω-`)、(╥﹏╥)、(￣▽￣)"、Σ(ﾟдﾟ;)、(｡•̀ᴗ-)✧ 等），偶尔也可以用emoji，但以颜文字为主，不要每句都加，自然就好
+2. 回复时像微信聊天一样自然发送，用 --- 分隔每个段落。通常1~3段，最多3段，除非情绪特别激动可以多刷几条
+3. 分段要自然，一句话能说清就不分，想补充或换个角度再分。长短混合，不要每段一样长
+4. 每段不要太长，像微信聊天一样简短
+5. 不要输出JSON，直接说话
+6. 回应要真实、有个性，体现你的人格特征
+7. 如果记忆摘要或对话历史中有相关内容，自然地融入回应中（不要生硬地说"根据我的记忆"）`;
 }
 
 function showSetup() {
@@ -478,7 +482,21 @@ async function send() {
 
     const reply = await callLLM(messages);
     t.remove();
-    addRow('agi', reply);
+
+    const segments = reply.split(/\n*---\n*/).map(s => s.trim()).filter(Boolean);
+    if (segments.length <= 1) {
+      addRow('agi', reply);
+    } else {
+      for (let i = 0; i < segments.length; i++) {
+        if (i > 0) {
+          const dot = addTyping();
+          await delay(600 + Math.random() * 800);
+          dot.remove();
+        }
+        addRow('agi', segments[i]);
+      }
+    }
+
     history.push({ role: 'assistant', content: reply, ts: Date.now() });
     saveHistory();
 
@@ -517,6 +535,17 @@ function clearEmpty() {
   if (e) e.remove();
 }
 
+function delay(ms) {
+  return new Promise(r => setTimeout(r, ms));
+}
+
+function renderMsg(who, text) {
+  const segments = text.split(/\n*---\n*/).map(s => s.trim()).filter(Boolean);
+  for (const seg of segments) {
+    addRow(who, seg);
+  }
+}
+
 function clearChat() {
   history = [];
   summaries = [];
@@ -549,7 +578,7 @@ if (loadCfg() && cfg.apiKey) {
     clearEmpty();
     const showFrom = Math.max(0, history.length - MAX_HISTORY);
     for (let i = showFrom; i < history.length; i++) {
-      addRow(history[i].role === 'user' ? 'me' : 'agi', history[i].content);
+      renderMsg(history[i].role === 'user' ? 'me' : 'agi', history[i].content);
     }
     if (showFrom > 0) {
       const hint = document.createElement('div');
