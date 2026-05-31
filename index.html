@@ -589,6 +589,10 @@ if (loadCfg() && cfg.apiKey) {
   }
 } else {
   document.getElementById('cfgProvider').value = 'deepseek';
+  document.getElementById('cfgModel').value = PROVIDERS.deepseek.model;
+  document.getElementById('cfgName').value = DEFAULT_PERSONALITY.name;
+  document.getElementById('cfgPersonality').value = DEFAULT_PERSONALITY.desc;
+  document.getElementById('cfgWorldview').value = DEFAULT_PERSONALITY.worldview;
   toggleBaseField();
 }
 </script>
