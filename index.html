@@ -114,6 +114,9 @@ html,body{height:100%;height:100dvh;background:var(--ink);color:var(--text);
 .msgs::-webkit-scrollbar{width:3px}
 .msgs::-webkit-scrollbar-thumb{background:var(--rim);border-radius:2px}
 
+.time-div{text-align:center;padding:.5rem 0;font-size:.7rem;color:var(--dim);letter-spacing:.03em}
+.time-div::before,.time-div::after{content:'';display:inline-block;width:2rem;height:1px;background:var(--rim);vertical-align:middle;margin:0 .5rem}
+
 .empty{margin:auto;text-align:center;padding:2rem}
 .empty-icon{width:52px;height:52px;margin:0 auto 1rem;border-radius:16px;
   background:linear-gradient(135deg,var(--blue),var(--indigo));
@@ -475,10 +478,17 @@ async function send() {
   try {
     const systemPrompt = buildSystemPrompt();
     const recent = history.slice(-MAX_HISTORY);
-    const messages = [
-      { role: 'system', content: systemPrompt },
-      ...recent.map(m => ({ role: m.role, content: m.content }))
-    ];
+    const messages = [{ role: 'system', content: systemPrompt }];
+    for (let i = 0; i < recent.length; i++) {
+      const m = recent[i];
+      if (i > 0 && m.ts && recent[i-1].ts) {
+        const gap = m.ts - recent[i-1].ts;
+        if (gap > 5 * 60 * 1000) {
+          messages.push({ role: 'system', content: '⏱ ' + gapDesc(gap, m.ts) });
+        }
+      }
+      messages.push({ role: m.role, content: m.content });
+    }
 
     const reply = await callLLM(messages);
     t.remove();
@@ -509,13 +519,58 @@ async function send() {
   }
 }
 
+function fmtTimeDiv(ts) {
+  const d = new Date(ts);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today - 86400000);
+  const msgDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const hm = d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
+
+  if (msgDay.getTime() === today.getTime()) return hm;
+  if (msgDay.getTime() === yesterday.getTime()) return '昨天 ' + hm;
+  const m = d.getMonth() + 1;
+  const day = d.getDate();
+  const weekDays = ['周日','周一','周二','周三','周四','周五','周六'];
+  if (now - d < 7 * 86400000) return weekDays[d.getDay()] + ' ' + hm;
+  return m + '月' + day + '日 ' + hm;
+}
+
+function gapDesc(gapMs, ts) {
+  const mins = Math.round(gapMs / 60000);
+  const d = new Date(ts);
+  const hm = d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
+  if (mins < 60) return mins + '分钟后（' + hm + '）';
+  const hrs = Math.floor(mins / 60);
+  const rm = mins % 60;
+  if (hrs < 24) return hrs + '小时' + (rm ? rm + '分钟' : '') + '后（' + hm + '）';
+  const days = Math.floor(hrs / 24);
+  const rh = hrs % 24;
+  return days + '天后（' + (d.getMonth()+1) + '月' + d.getDate() + '日 ' + hm + '）';
+}
+
+function maybeAddTimeDiv(ts) {
+  const box = document.getElementById('msgs');
+  const last = box.querySelector('.time-div');
+  const lastTs = last ? parseInt(last.dataset.ts) : 0;
+  if (ts - lastTs > 5 * 60 * 1000) {
+    const div = document.createElement('div');
+    div.className = 'time-div';
+    div.dataset.ts = ts;
+    div.textContent = fmtTimeDiv(ts);
+    box.appendChild(div);
+  }
+}
+
 function addRow(who, text) {
   const box = document.getElementById('msgs');
-  const now = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+  const now = Date.now();
+  maybeAddTimeDiv(now);
+  const timeStr = new Date(now).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
   const el = document.createElement('div');
   el.className = `row ${who}`;
   const label = who === 'me' ? '你' : (cfg.name || 'AGI');
-  el.innerHTML = `<div class="row-label">${label}  ${now}</div><div class="bubble">${esc(text)}</div>`;
+  el.innerHTML = `<div class="row-label">${label}  ${timeStr}</div><div class="bubble">${esc(text)}</div>`;
   box.appendChild(el);
   box.scrollTop = box.scrollHeight;
 }
@@ -539,7 +594,8 @@ function delay(ms) {
   return new Promise(r => setTimeout(r, ms));
 }
 
-function renderMsg(who, text) {
+function renderMsg(who, text, ts) {
+  if (ts) maybeAddTimeDiv(ts);
   const segments = text.split(/\n*---\n*/).map(s => s.trim()).filter(Boolean);
   for (const seg of segments) {
     addRow(who, seg);
@@ -578,7 +634,7 @@ if (loadCfg() && cfg.apiKey) {
     clearEmpty();
     const showFrom = Math.max(0, history.length - MAX_HISTORY);
     for (let i = showFrom; i < history.length; i++) {
-      renderMsg(history[i].role === 'user' ? 'me' : 'agi', history[i].content);
+      renderMsg(history[i].role === 'user' ? 'me' : 'agi', history[i].content, history[i].ts);
     }
     if (showFrom > 0) {
       const hint = document.createElement('div');
